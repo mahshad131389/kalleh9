@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: white;
+        }
+        
+        #instruction-text {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 20px;
+            z-index: 10;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        
+        #close-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.3);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            z-index: 10000;
+            display: none;
+            cursor: pointer;
+        }
+        
+        .model-container {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            background-color: #000;
+        }
+        
+        model-viewer {
+            width: 100%;
+            height: 100%;
+            --poster-color: transparent;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            z-index: 20;
+        }
+        
+        .container {
+            width: 100%;
+            height: 100%;
+            margin: 0 auto;
+            animation: floating 1.5s ease-in-out infinite;
+            perspective: 1000px;
+            display: none;
+        }
+
+        .icecream-model {
+            width: 100%;
+            height: 100%;
+            transition: all 0.5s ease;
+        }
+
+        .container:hover .icecream-model {
+            transform: scale(1.05) rotateY(10deg);
+        }
+
+        @keyframes floating {
+            0%, 100% { 
+                transform: translateY(0px) rotate(0deg); 
+            }
+            25% { 
+                transform: translateY(-30px) rotate(5deg);
+            }
+            50% { 
+                transform: translateY(10px) rotate(-3deg);
+            }
+            75% { 
+                transform: translateY(-20px) rotate(4deg);
+            }
+        }
+        
+        .a-canvas {
+            z-index: 1;
+        }
+        
+        .mindar-ui-overlay {
+            display: none !important;
+        }
+        
+        #audio-control {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.3);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        
+        .animation-stopped {
+            animation: none !important;
+        }
+        
+        #hologram-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 500px;
+            border: 3px solid rgba(0, 255, 255, 0.5); 
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+            background-color: rgba(0, 255, 255, 0.05);
+            border-radius: 8px;
+            z-index: 9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #hologram-box::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.1) 50%, transparent 60%);
+            animation: hologram-scan 4s infinite linear; /* سرعت کمتر برای اسکن */
+        }
+        
+        #hologram-box .inner-box {
+            width: 30px; 
+            height: 30px; 
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            opacity: 0.5; 
+        }
+        
+        @keyframes hologram-scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="instruction-text">لطفا دوربین را مقابل بستنی قرار دهید</div>
+    
+    <div id="hologram-box">
+        <div class="inner-box"></div>
+    </div>
+    
+    <div class="container" id="model-container">
+        <model-viewer 
+            class="icecream-model"
+            id="icecream-model"
+            src="icecream.glb" 
+            alt="بستنی شناور"
+            auto-rotate="false" 
+    
+            auto-rotate-delay="0"
+            rotation-per-second="150deg"
+            camera-controls
+            environment-image="legacy"
+            exposure="1.2"
+            camera-orbit="0deg 90deg 105%"
+            field-of-view="30deg"
+            min-camera-orbit="auto 0deg auto"
+            max-camera-orbit="auto 180deg auto"
+            min-field-of-view="30deg"
+            max-field-of-view="70deg"
+            autoplay>
+        </model-viewer>
+    </div>
+    
+    <a-scene mindar-image="imageTargetSrc: targetfull.mind;" uiLoading: false; uiScanning: false; uiError: false; color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        <a-assets>
+            <a-asset-item id="icecream" src="icecream.glb"></a-asset-item>
+        </a-assets>
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <a-entity mindar-image-target="targetIndex: 0">
+            <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.008 0.008 0.008" src="#icecream" animation-mixer="clip: Take 001" visible="false"></a-gltf-model>
+        </a-entity>
+    </a-scene>
+    
+    <button id="close-button">بستن مدل</button>
+    
+    <button id="audio-control">🔇</button>
+
+    <audio id="background-music" loop>
+        <source src="Intro1.wav" type="audio/mpeg">
+        مرورگر شما از عنصر صوتی پشتیبانی نمی‌کند.
+    </audio>
+
+    <script>
+        const scene = document.querySelector('a-scene');
+        const modelContainer = document.getElementById('model-container');
+        const icecreamModel = document.getElementById('icecream-model');
+        const closeButton = document.getElementById('close-button');
+        const instructionText = document.getElementById('instruction-text');
+        const backgroundMusic = document.getElementById('background-music');
+        const audioControl = document.getElementById('audio-control');
+        const hologramBox = document.getElementById('hologram-box');
+        let targetFound = false;
+        let userInteracted = false;
+        let audioEnabled = false;
+        let animationTimer;
+        
+        audioControl.addEventListener('click', function() {
+            if (audioEnabled) {
+                backgroundMusic.pause();
+                audioControl.innerHTML = '🔇';
+                audioEnabled = false;
+            } else {
+                backgroundMusic.play().catch(e => {
+                    console.log("خطا در پخش موسیقی: ", e);
+                });
+                audioControl.innerHTML = '🔊';
+                audioEnabled = true;
+            }
+        });
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const mindarUi = document.querySelector('.mindar-ui-overlay');
+            if (mindarUi) {
+                mindarUi.style.display = 'none';
+            }
+            
+            const scanningElement = document.querySelector('.scanning');
+            if (scanningElement) {
+                scanningElement.style.display = 'none';
+            }
+            
+            hologramBox.style.display = 'flex';
+            
+            document.body.addEventListener('click', function() {
+                if (!userInteracted) {
+                    userInteracted = true;
+                    console.log("صدا فعال شد");
+                    
+                    if (audioEnabled) {
+                        backgroundMusic.play().catch(e => {
+                            console.log("خطا در پخش موسیقی: ", e);
+                        });
+                    }
+                }
+            }, { once: true });
+        });
+        
+        scene.addEventListener('targetFound', event => {
+            console.log("نشانه شناسایی شد");
+            if (!targetFound) {
+                targetFound = true;
+                
+                hologramBox.style.display = 'none';
+                
+                modelContainer.style.display = 'block';
+                closeButton.style.display = 'block';
+                instructionText.style.display = 'none';
+                
+                startAnimationTimer();
+                
+                if (userInteracted && audioEnabled) {
+                    backgroundMusic.play().catch(e => {
+                        console.log("خطا در پخش موسیقی: ", e);
+                    });
+                }
+            }
+        });
+        
+        scene.addEventListener('targetLost', event => {
+            console.log("نشانه از دست رفت");
+            
+            if (targetFound) {
+                targetFound = false;
+                
+                modelContainer.style.display = 'none';
+                closeButton.style.display = 'none';
+                instructionText.style.display = 'block';
+                
+                hologramBox.style.display = 'flex';
+                
+                backgroundMusic.pause();
+                backgroundMusic.currentTime = 0;
+                
+                clearTimeout(animationTimer);
+                
+                restartAnimation();
+            }
+        });
+        
+        closeButton.addEventListener('click', function() {
+            modelContainer.style.display = 'none';
+            closeButton.style.display = 'none';
+            instructionText.style.display = 'block';
+            targetFound = false;
+            
+            hologramBox.style.display = 'flex';
+            
+            backgroundMusic.pause();
+            backgroundMusic.currentTime = 0;
+            
+            clearTimeout(animationTimer);
+            
+            restartAnimation();
+        });
+        
+        scene.addEventListener('loaded', function() {
+            console.log("صحنه بارگذاری شد");
+        });
+        
+        if (icecreamModel) {
+            icecreamModel.addEventListener('load', () => {
+                icecreamModel.addEventListener('animation-finished', () => {
+                    icecreamModel.autoRotate = true;
+                    icecreamModel.cameraOrbit = "0deg 90deg 105%";
+                    console.log("انیمیشن پایان یافت، چرخش 360 درجه فعال شد");
+                });
+            });
+        }
+        
+        function restartAnimation() {
+            modelContainer.classList.remove('animation-stopped');
+            
+            if (icecreamModel) {
+                icecreamModel.style.animationPlayState = 'running';
+                
+                icecreamModel.autoRotate = false;
+                
+                setTimeout(() => {
+                    if (icecreamModel.model && icecreamModel.model.animationPlayer) {
+                        icecreamModel.model.animationPlayer.play();
+                    }
+                }, 100);
+            }
+        }
+        
+        function stopAnimation() {
+            modelContainer.classList.add('animation-stopped');
+            
+            if (icecreamModel) {
+                icecreamModel.style.animationPlayState = 'paused';
+                
+                if (icecreamModel.model && icecreamModel.model.animationPlayer) {
+                    icecreamModel.model.animationPlayer.pause();
+                }
+                
+                icecreamModel.autoRotate = true;
+                icecreamModel.cameraOrbit = "0deg 90deg 105%";
+                
+                setTimeout(() => {
+                    if (icecreamModel) {
+                        icecreamModel.cameraControls = true;
+                        icecreamModel.updateFraming();
+                        
+                        console.log("کنترل‌های لمسی فعال شدند و چرخش 360 درجه آغاز شد");
+                    }
+                }, 100);
+            }
+            
+            console.log("انیمیشن پس از 10 ثانیه متوقف شد و چرخش 360 درجه آغاز گردید");
+        }
+        
+        function startAnimationTimer() {
+            clearTimeout(animationTimer);
+            
+            animationTimer = setTimeout(() => {
+                stopAnimation();
+            }, 10000);
+        }
+    </script>
+</body>
+</html>
